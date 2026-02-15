@@ -38,17 +38,71 @@ import {
   VerifiedUser
 } from '@mui/icons-material';
 
+// Define types for better TypeScript support
+interface SignalModel {
+  prediction: string;
+  confidence: number;
+}
+
+interface TechnicalAnalysis {
+  rsi: number;
+  macd: string;
+}
+
+interface SignalData {
+  ensemble: {
+    confidence: number;
+    prediction: string;
+    strength: string;
+  };
+  models: Record<string, SignalModel>;
+  technical_analysis: TechnicalAnalysis;
+}
+
+interface Trader {
+  id: string;
+  username: string;
+  avatar: string;
+  followers: number;
+  profit_30d: number;
+  win_rate: number;
+  roi: number;
+  risk_score: number;
+  verified?: boolean;
+  premium?: boolean;
+}
+
+interface Strategy {
+  id: string;
+  name: string;
+  creator: string;
+  description: string;
+  win_rate: number;
+  profit: number;
+  rating: number;
+  price: number;
+  verified?: boolean;
+}
+
+interface LeaderboardUser {
+  rank: number;
+  username: string;
+  trades: number;
+  win_rate: number;
+  profit: number;
+}
+
 export default function EnhancedDashboard() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedMarket, setSelectedMarket] = useState('R_100');
   const [stakeAmount, setStakeAmount] = useState(1.00);
   const [balance, setBalance] = useState(10000);
-  const [signal, setSignal] = useState(null);
-  const [livePrice, setLivePrice] = useState(null);
+  const [signal, setSignal] = useState<SignalData | null>(null);
+  const [livePrice, setLivePrice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [topTraders, setTopTraders] = useState([]);
-  const [strategies, setStrategies] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [topTraders, setTopTraders] = useState<Trader[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [notifications, setNotifications] = useState([]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -81,7 +135,7 @@ export default function EnhancedDashboard() {
     fetchPrice();
     const interval = setInterval(fetchPrice, 2000);
     return () => clearInterval(interval);
-  }, [selectedMarket]);
+  }, [selectedMarket, API_URL]);
 
   // Fetch top traders
   useEffect(() => {
@@ -89,13 +143,14 @@ export default function EnhancedDashboard() {
       try {
         const response = await fetch(`${API_URL}/api/v2/copy-trading/traders`);
         const data = await response.json();
-        setTopTraders(data.traders);
+        setTopTraders(data.traders || []);
       } catch (error) {
         console.error('Error:', error);
+        setTopTraders([]);
       }
     };
     fetchTopTraders();
-  }, []);
+  }, [API_URL]);
 
   // Fetch marketplace strategies
   useEffect(() => {
@@ -103,13 +158,14 @@ export default function EnhancedDashboard() {
       try {
         const response = await fetch(`${API_URL}/api/v2/marketplace/strategies`);
         const data = await response.json();
-        setStrategies(data.strategies);
+        setStrategies(data.strategies || []);
       } catch (error) {
         console.error('Error:', error);
+        setStrategies([]);
       }
     };
     fetchStrategies();
-  }, []);
+  }, [API_URL]);
 
   // Fetch leaderboard
   useEffect(() => {
@@ -117,13 +173,14 @@ export default function EnhancedDashboard() {
       try {
         const response = await fetch(`${API_URL}/api/v2/community/leaderboard`);
         const data = await response.json();
-        setLeaderboard(data.leaderboard);
+        setLeaderboard(data.leaderboard || []);
       } catch (error) {
         console.error('Error:', error);
+        setLeaderboard([]);
       }
     };
     fetchLeaderboard();
-  }, []);
+  }, [API_URL]);
 
   const markets = [
     { value: 'R_10', label: 'Volatility 10', color: '#00ff88' },
@@ -332,7 +389,7 @@ export default function EnhancedDashboard() {
                     {/* Ensemble Prediction */}
                     <Box sx={{ mb: 3, textAlign: 'center' }}>
                       <Chip 
-                        label={`${(signal.ensemble.confidence * 100).toFixed(0)}% Confidence`}
+                        label={`${(signal.ensemble?.confidence * 100 || 0).toFixed(0)}% Confidence`}
                         sx={{ 
                           bgcolor: 'rgba(102, 126, 234, 0.2)',
                           color: '#667eea',
@@ -341,64 +398,75 @@ export default function EnhancedDashboard() {
                         }}
                       />
                       <Typography variant="h2" sx={{ 
-                        color: signal.ensemble.prediction === 'CALL' ? '#00ff88' : '#ff0055',
+                        color: signal.ensemble?.prediction === 'CALL' ? '#00ff88' : '#ff0055',
                         fontWeight: 'bold',
                         mb: 1
                       }}>
-                        {signal.ensemble.prediction}
+                        {signal.ensemble?.prediction || 'ANALYZING'}
                       </Typography>
                       <Chip 
-                        label={signal.ensemble.strength}
-                        color={signal.ensemble.strength === 'STRONG' ? 'success' : 'warning'}
+                        label={signal.ensemble?.strength || 'MEDIUM'}
+                        color={signal.ensemble?.strength === 'STRONG' ? 'success' : 'warning'}
                       />
                     </Box>
 
                     {/* ML Models */}
-                    <Typography variant="subtitle2" sx={{ color: '#888', mb: 1 }}>
-                      AI Models Consensus:
-                    </Typography>
-                    {Object.entries(signal.models).map(([name, model]) => (
-                      <Box key={name} sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" color="#fff">
-                            {name.replace('_', ' ').toUpperCase()}
-                          </Typography>
-                          <Typography variant="body2" sx={{ 
-                            color: model.prediction === 'CALL' ? '#00ff88' : '#ff0055'
-                          }}>
-                            {model.prediction} ({(model.confidence * 100).toFixed(0)}%)
-                          </Typography>
-                        </Box>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={model.confidence * 100}
-                          sx={{
-                            bgcolor: 'rgba(255,255,255,0.1)',
-                            '& .MuiLinearProgress-bar': {
-                              bgcolor: model.prediction === 'CALL' ? '#00ff88' : '#ff0055'
-                            }
-                          }}
-                        />
-                      </Box>
-                    ))}
+                    {signal.models && Object.keys(signal.models).length > 0 && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ color: '#888', mb: 1 }}>
+                          AI Models Consensus:
+                        </Typography>
+                        {Object.entries(signal.models).map(([name, model]) => {
+                          const modelData = model as SignalModel;
+                          return (
+                            <Box key={name} sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="body2" color="#fff">
+                                  {name.replace('_', ' ').toUpperCase()}
+                                </Typography>
+                                <Typography variant="body2" sx={{ 
+                                  color: modelData.prediction === 'CALL' ? '#00ff88' : '#ff0055'
+                                }}>
+                                  {modelData.prediction} ({(modelData.confidence * 100).toFixed(0)}%)
+                                </Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={modelData.confidence * 100}
+                                sx={{
+                                  bgcolor: 'rgba(255,255,255,0.1)',
+                                  '& .MuiLinearProgress-bar': {
+                                    bgcolor: modelData.prediction === 'CALL' ? '#00ff88' : '#ff0055'
+                                  }
+                                }}
+                              />
+                            </Box>
+                          );
+                        })}
+                      </>
+                    )}
 
                     {/* Technical Analysis */}
-                    <Divider sx={{ my: 2, bgcolor: '#333' }} />
-                    <Typography variant="subtitle2" sx={{ color: '#888', mb: 1 }}>
-                      Technical Indicators:
-                    </Typography>
-                    <Grid container spacing={1}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="#888">RSI</Typography>
-                        <Typography variant="body2" color="#fff">{signal.technical_analysis.rsi}</Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="#888">MACD</Typography>
-                        <Typography variant="body2" color={signal.technical_analysis.macd === 'bullish' ? '#00ff88' : '#ff0055'}>
-                          {signal.technical_analysis.macd}
+                    {signal.technical_analysis && (
+                      <>
+                        <Divider sx={{ my: 2, bgcolor: '#333' }} />
+                        <Typography variant="subtitle2" sx={{ color: '#888', mb: 1 }}>
+                          Technical Indicators:
                         </Typography>
-                      </Grid>
-                    </Grid>
+                        <Grid container spacing={1}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="#888">RSI</Typography>
+                            <Typography variant="body2" color="#fff">{signal.technical_analysis.rsi}</Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="#888">MACD</Typography>
+                            <Typography variant="body2" color={signal.technical_analysis.macd === 'bullish' ? '#00ff88' : '#ff0055'}>
+                              {signal.technical_analysis.macd}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </>
+                    )}
                   </Box>
                 ) : (
                   <Box sx={{ 
@@ -427,7 +495,7 @@ export default function EnhancedDashboard() {
                 Top Traders to Copy
               </Typography>
             </Grid>
-            {topTraders.map(trader => (
+            {topTraders && topTraders.length > 0 ? topTraders.map(trader => (
               <Grid item xs={12} md={6} key={trader.id}>
                 <Card sx={{ bgcolor: '#1a1f3a', borderRadius: 3 }}>
                   <CardContent>
@@ -440,7 +508,7 @@ export default function EnhancedDashboard() {
                           {trader.premium && <Star sx={{ fontSize: 20, color: '#ffaa00' }} />}
                         </Box>
                         <Typography variant="caption" color="#888">
-                          {trader.followers.toLocaleString()} followers
+                          {trader.followers?.toLocaleString() || 0} followers
                         </Typography>
                       </Box>
                       <Button 
@@ -456,34 +524,40 @@ export default function EnhancedDashboard() {
                       <Grid item xs={6}>
                         <Typography variant="caption" color="#888">30-Day Profit</Typography>
                         <Typography variant="h6" color="#00ff88">
-                          +${trader.profit_30d.toFixed(2)}
+                          +${trader.profit_30d?.toFixed(2) || '0.00'}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
                         <Typography variant="caption" color="#888">Win Rate</Typography>
                         <Typography variant="h6" color="#fff">
-                          {(trader.win_rate * 100).toFixed(1)}%
+                          {((trader.win_rate || 0) * 100).toFixed(1)}%
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
                         <Typography variant="caption" color="#888">ROI</Typography>
                         <Typography variant="h6" color="#00ff88">
-                          +{trader.roi}%
+                          +{trader.roi || 0}%
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
                         <Typography variant="caption" color="#888">Risk Score</Typography>
                         <Chip 
-                          label={trader.risk_score + '/10'}
+                          label={(trader.risk_score || 5) + '/10'}
                           size="small"
-                          color={trader.risk_score < 5 ? 'success' : trader.risk_score < 7 ? 'warning' : 'error'}
+                          color={(trader.risk_score || 5) < 5 ? 'success' : (trader.risk_score || 5) < 7 ? 'warning' : 'error'}
                         />
                       </Grid>
                     </Grid>
                   </CardContent>
                 </Card>
               </Grid>
-            ))}
+            )) : (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 4, bgcolor: '#1a1f3a', textAlign: 'center' }}>
+                  <Typography color="#888">No traders available</Typography>
+                </Paper>
+              </Grid>
+            )}
           </Grid>
         )}
 
@@ -495,7 +569,7 @@ export default function EnhancedDashboard() {
                 Strategy Marketplace
               </Typography>
             </Grid>
-            {strategies.map(strategy => (
+            {strategies && strategies.length > 0 ? strategies.map(strategy => (
               <Grid item xs={12} md={4} key={strategy.id}>
                 <Card sx={{ 
                   bgcolor: '#1a1f3a',
@@ -525,13 +599,13 @@ export default function EnhancedDashboard() {
                       <Grid item xs={4}>
                         <Typography variant="caption" color="#888">Win Rate</Typography>
                         <Typography variant="body1" color="#00ff88">
-                          {(strategy.win_rate * 100).toFixed(0)}%
+                          {((strategy.win_rate || 0) * 100).toFixed(0)}%
                         </Typography>
                       </Grid>
                       <Grid item xs={4}>
                         <Typography variant="caption" color="#888">Profit</Typography>
                         <Typography variant="body1" color="#00ff88">
-                          ${strategy.profit}
+                          ${strategy.profit || 0}
                         </Typography>
                       </Grid>
                       <Grid item xs={4}>
@@ -539,7 +613,7 @@ export default function EnhancedDashboard() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <Star sx={{ fontSize: 16, color: '#ffaa00' }} />
                           <Typography variant="body1" color="#fff">
-                            {strategy.rating}
+                            {strategy.rating || 0}
                           </Typography>
                         </Box>
                       </Grid>
@@ -547,7 +621,7 @@ export default function EnhancedDashboard() {
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="h5" color="#667eea" fontWeight="bold">
-                        ${strategy.price}
+                        ${strategy.price || 0}
                       </Typography>
                       <Button 
                         variant="contained"
@@ -560,7 +634,13 @@ export default function EnhancedDashboard() {
                   </CardContent>
                 </Card>
               </Grid>
-            ))}
+            )) : (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 4, bgcolor: '#1a1f3a', textAlign: 'center' }}>
+                  <Typography color="#888">No strategies available</Typography>
+                </Paper>
+              </Grid>
+            )}
           </Grid>
         )}
 
@@ -571,7 +651,7 @@ export default function EnhancedDashboard() {
               Community Leaderboard
             </Typography>
             <Paper sx={{ bgcolor: '#1a1f3a', borderRadius: 3, overflow: 'hidden' }}>
-              {leaderboard.map((user, idx) => (
+              {leaderboard && leaderboard.length > 0 ? leaderboard.map((user, idx) => (
                 <Box 
                   key={user.rank}
                   sx={{ 
@@ -600,18 +680,22 @@ export default function EnhancedDashboard() {
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="h6" color="#fff">{user.username}</Typography>
                     <Typography variant="caption" color="#888">
-                      {user.trades} trades • {(user.win_rate * 100).toFixed(1)}% win rate
+                      {user.trades || 0} trades • {((user.win_rate || 0) * 100).toFixed(1)}% win rate
                     </Typography>
                   </Box>
                   <Typography variant="h5" color="#00ff88" fontWeight="bold">
-                    +${user.profit.toFixed(2)}
+                    +${(user.profit || 0).toFixed(2)}
                   </Typography>
                 </Box>
-              ))}
+              )) : (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography color="#888">No leaderboard data available</Typography>
+                </Box>
+              )}
             </Paper>
           </Box>
         )}
       </Box>
     </Box>
   );
-}
+    }
