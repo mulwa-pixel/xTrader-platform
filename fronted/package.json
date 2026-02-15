@@ -1,7 +1,7 @@
 {
-  "name": "xtrader-frontend",
-  "version": "1.0.0",
-  "description": "xTrader Trading Platform",
+  "name": "xtrader-enhanced",
+  "version": "2.0.0",
+  "description": "xTrader Pro - Premium Deriv Trading Platform",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,7 +16,6 @@
     "@mui/icons-material": "5.15.6",
     "@emotion/react": "11.11.3",
     "@emotion/styled": "11.11.0",
-    "lightweight-charts": "4.1.3",
     "axios": "1.6.5"
   },
   "devDependencies": {
