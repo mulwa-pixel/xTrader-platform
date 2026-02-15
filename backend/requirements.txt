@@ -1,17 +1,23 @@
-# xTrader Backend Dependencies
-# SIMPLIFIED for easy deployment
+# xTrader Platform v2.0 - Enhanced Dependencies
 
-# Web Framework
+# Core Framework
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
-
-# WebSockets
 websockets==12.0
-
-# CORS
 python-multipart==0.0.6
 
-# Environment variables
+# Async HTTP Client for Deriv API
+aiohttp==3.9.1
+
+# Environment Variables
 python-dotenv==1.0.0
 
-# That's it! Simple and lightweight for Android deployment
+# JSON handling
+orjson==3.9.12
+
+# Date/Time
+python-dateutil==2.8.2
+
+# pandas==2.1.4  # For analytics
+# numpy==1.26.3  # For calculations
+# scikit-learn==1.4.0  # For ML models
