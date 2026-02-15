@@ -1,0 +1,17 @@
+# Render Deployment Configuration
+# This file tells Render how to deploy your app
+
+services:
+  # Backend API
+  - type: web
+    name: xtrader-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    
+  # Frontend
+  - type: web
+    name: xtrader-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
